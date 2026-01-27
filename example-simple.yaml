@@ -1,0 +1,33 @@
+# Minimal configuration example
+esphome:
+  name: alexa-device
+  platform: ESP8266
+  board: nodemcuv2
+
+external_components:
+  - source: github://rajiteh/esphome-fauxmoesp
+    components: [fauxmoesp]
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+
+api:
+
+ota:
+
+# Simple FauxmoESP setup
+fauxmoesp:
+  devices:
+    - name: "Smart Light"
+      on_state:
+        - logger.log: "State changed from Alexa!"
+        - switch.toggle: relay
+
+switch:
+  - platform: gpio
+    pin: GPIO5
+    name: "Relay"
+    id: relay
