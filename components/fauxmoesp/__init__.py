@@ -1,4 +1,5 @@
 """FauxmoESP Component for ESPHome - Alexa integration via Philips Hue emulation"""
+
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation
@@ -20,7 +21,8 @@ FauxmoDevice = fauxmoesp_ns.class_("FauxmoDevice")
 
 # Triggers
 FauxmoStateTrigger = fauxmoesp_ns.class_(
-    "FauxmoStateTrigger", automation.Trigger.template(cg.uint8, cg.std_string, cg.bool_, cg.uint8)
+    "FauxmoStateTrigger",
+    automation.Trigger.template(cg.uint8, cg.std_string, cg.bool_, cg.uint8),
 )
 
 CONF_DEVICES = "devices"
@@ -57,12 +59,12 @@ async def to_code(config):
 
     # Add library dependency
     if CORE.is_esp32:
-        cg.add_library("fauxmoESP", "3.4.0")
-        cg.add_library("AsyncTCP", "1.1.1")
+        cg.add_library("vintlabs/FauxmoESP", "3.4.0")
+        cg.add_library("esphome/AsyncTCP-esphome", "2.1.4")
     elif CORE.is_esp8266:
-        cg.add_library("fauxmoESP", "3.4.0")
-        cg.add_library("ESPAsyncTCP", "1.2.2")
-    
+        cg.add_library("vintlabs/FauxmoESP", "3.4.0")
+        cg.add_library("esphome/ESPAsyncTCP-esphome", "2.0.0")
+
     # Configure component
     cg.add(var.set_port(config[CONF_PORT]))
     cg.add(var.set_enabled(config[CONF_ENABLED]))
