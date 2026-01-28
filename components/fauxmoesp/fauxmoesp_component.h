@@ -3,7 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/log.h"
-#include "Arduino.h"
+
 #include <fauxmoESP.h>
 #include <vector>
 #include <functional>
