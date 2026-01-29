@@ -57,6 +57,12 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
+    # AsyncTCP is required by FauxmoESP but not auto-resolved from git repo
+    if CORE.is_esp32:
+        cg.add_library("esphome/AsyncTCP-esphome", "2.1.4")
+    elif CORE.is_esp8266:
+        cg.add_library("esphome/ESPAsyncTCP-esphome", "2.0.0")
+
     # Use patched FauxmoESP library with setIP/setMAC methods for ESPHome compatibility
     cg.add_library(
         "FauxmoESP", None, "https://github.com/rajiteh/fauxmoESP.git#esphome-patches"
