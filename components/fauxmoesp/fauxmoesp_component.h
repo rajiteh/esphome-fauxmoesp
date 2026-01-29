@@ -4,6 +4,9 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/log.h"
 
+// Include fauxmoESP first, then override its debug macros
+#include <fauxmoESP.h>
+
 // Redirect FauxmoESP debug output to ESPHome's logging system
 // Enable verbose logging by adding these build_flags in your YAML:
 //   platformio_options:
@@ -13,10 +16,10 @@
 
 #define DEBUG_FAUXMO_TAG "fauxmo_lib"
 
-// Main debug macro
+// Undefine the library's macros and replace with ESPHome logging
+#undef DEBUG_MSG_FAUXMO
 #define DEBUG_MSG_FAUXMO(fmt, ...) ESP_LOGD(DEBUG_FAUXMO_TAG, fmt, ##__VA_ARGS__)
 
-#include <fauxmoESP.h>
 #include <vector>
 #include <functional>
 
