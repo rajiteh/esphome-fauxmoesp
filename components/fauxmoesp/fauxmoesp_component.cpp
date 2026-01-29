@@ -11,12 +11,33 @@ namespace fauxmoesp {
 static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up FauxmoESP (will initialize when WiFi is ready)...");
+  ESP_LOGCONFIG(TAG, "Setting up FauxmoESP...");
   
-  // Configure FauxmoESP but DON'T enable yet
+  // Get IP from ESPHome's network API
+  auto ips = network::get_ip_addresses();
+  if (ips.empty() || !ips[0].is_set()) {
+    ESP_LOGE(TAG, "No valid IP address available!");
+    return;
+  }
+  
+  // Get MAC address from ESPHome
+  uint8_t mac[6];
+  get_mac_address_raw(mac);
+  char mac_str[18];
+  snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  
+  ESP_LOGCONFIG(TAG, "  IP: %s, MAC: %s", ips[0].str().c_str(), mac_str);
+  
+  // Convert ESPHome IP to Arduino IPAddress
+  IPAddress ip_addr;
+  ip_addr.fromString(ips[0].str().c_str());
+  
+  // Configure FauxmoESP
   this->fauxmo_.createServer(this->create_server_);
   this->fauxmo_.setPort(this->port_);
-  // Don't call enable() here - we'll do it in loop() when WiFi is ready
+  this->fauxmo_.setIP(ip_addr);
+  this->fauxmo_.setMAC(mac_str);
 
   // Add all configured devices
   for (auto *device : this->devices_) {
@@ -37,50 +58,17 @@ void FauxmoESPComponent::setup() {
     }
   });
 
-  ESP_LOGCONFIG(TAG, "FauxmoESP setup complete (waiting for WiFi)!");
+  // Enable FauxmoESP
+  this->fauxmo_.enable(this->enabled_);
+  this->is_initialized_ = true;
+  
+  ESP_LOGCONFIG(TAG, "FauxmoESP setup complete and listening for Alexa discovery!");
 }
 
 void FauxmoESPComponent::loop() {
-  // Check if we need to initialize (waiting for WiFi to connect)
   if (!this->is_initialized_) {
-    // Use ESPHome's network API instead of Arduino's WiFi class
-    if (!network::is_connected()) {
-      return;  // Wait for WiFi
-    }
-    
-    // Get IP from ESPHome's network API
-    auto ips = network::get_ip_addresses();
-    if (ips.empty() || !ips[0].is_set()) {
-      return;  // Wait for valid IP
-    }
-    
-    // Get MAC address from ESPHome
-    uint8_t mac[6];
-    get_mac_address_raw(mac);
-    char mac_str[18];
-    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    
-    ESP_LOGI(TAG, "Network connected! IP: %s, MAC: %s", ips[0].str().c_str(), mac_str);
-    
-    // Convert ESPHome IP to Arduino IPAddress
-    // Parse the IP string since direct conversion isn't available
-    IPAddress ip_addr;
-    ip_addr.fromString(ips[0].str().c_str());
-    
-    // Set IP and MAC on fauxmo (patched library method)
-    this->fauxmo_.setIP(ip_addr);
-    this->fauxmo_.setMAC(mac_str);
-    
-    ESP_LOGI(TAG, "Enabling FauxmoESP server...");
-    this->fauxmo_.enable(this->enabled_);
-    this->is_initialized_ = true;
-    
-    ESP_LOGI(TAG, "FauxmoESP is now active and listening for Alexa discovery");
     return;
   }
-  
-  // Handle FauxmoESP events (UDP discovery, TCP requests)
   this->fauxmo_.handle();
 }
 
@@ -105,18 +93,10 @@ void FauxmoESPComponent::add_device(FauxmoDevice *device) {
 }
 
 bool FauxmoESPComponent::set_device_state(uint8_t id, bool state, uint8_t value) {
-  if (!this->is_initialized_) {
-    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
-    return false;
-  }
   return this->fauxmo_.setState(id, state, value);
 }
 
 bool FauxmoESPComponent::set_device_state(const char *name, bool state, uint8_t value) {
-  if (!this->is_initialized_) {
-    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
-    return false;
-  }
   return this->fauxmo_.setState(name, state, value);
 }
 
