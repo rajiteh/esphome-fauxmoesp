@@ -3,6 +3,7 @@
 #include "esphome/core/application.h"
 #include "esphome/core/helpers.h"
 #include "esphome/components/network/util.h"
+#include <IPAddress.h>
 
 namespace esphome {
 namespace fauxmoesp {
@@ -49,7 +50,7 @@ void FauxmoESPComponent::loop() {
     
     // Get IP from ESPHome's network API
     auto ips = network::get_ip_addresses();
-    if (ips.empty() || ips[0].is_ip4_broadcast() || (uint32_t)ips[0] == 0) {
+    if (ips.empty() || !ips[0].is_set()) {
       return;  // Wait for valid IP
     }
     
@@ -62,8 +63,12 @@ void FauxmoESPComponent::loop() {
     
     ESP_LOGI(TAG, "Network connected! IP: %s, MAC: %s", ips[0].str().c_str(), mac_str);
     
+    // Convert ESPHome IP to Arduino IPAddress
+    // Parse the IP string since direct conversion isn't available
+    IPAddress ip_addr;
+    ip_addr.fromString(ips[0].str().c_str());
+    
     // Set IP and MAC on fauxmo (patched library method)
-    IPAddress ip_addr(ips[0]);
     this->fauxmo_.setIP(ip_addr);
     this->fauxmo_.setMAC(mac_str);
     
