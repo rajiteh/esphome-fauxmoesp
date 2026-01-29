@@ -13,6 +13,7 @@ void FauxmoESPComponent::setup() {
   // Configure FauxmoESP
   this->fauxmo_.createServer(this->create_server_);
   this->fauxmo_.setPort(this->port_);
+  this->fauxmo_.enable(this->enabled_);
 
   // Add all configured devices
   for (auto *device : this->devices_) {
@@ -34,7 +35,6 @@ void FauxmoESPComponent::setup() {
   });
 
   // Enable FauxmoESP
-  this->fauxmo_.enable(this->enabled_);
   this->is_setup_ = true;
 
   ESP_LOGCONFIG(TAG, "FauxmoESP setup complete!");

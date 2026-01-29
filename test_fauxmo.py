@@ -51,9 +51,6 @@ class FauxmoClient:
             raise Exception(f"HTTP {e.code}: {e.reason}")
         except urllib.error.URLError as e:
             raise Exception(f"Connection error: {e.reason}")
-        except http.client.RemoteDisconnected:
-            # FauxmoESP may close connection after response, this is expected for PUT
-            return [{"success": True}]
 
     def get_lights(self):
         """Get all lights."""
@@ -218,6 +215,11 @@ def test_on_off(client, light_id):
     print(f"🔦 Testing ON/OFF for device {light_id}...")
 
     try:
+        # Turn OFF
+        result = client.turn_off(light_id)
+        print(f"  ✅ Turned OFF - Response: {result}")
+        time.sleep(1)
+
         # Turn ON
         result = client.turn_on(light_id)
         print(f"  ✅ Turned ON - Response: {result}")
