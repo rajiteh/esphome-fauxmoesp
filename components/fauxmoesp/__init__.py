@@ -58,7 +58,7 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     # Add library dependency - FauxmoESP handles its own AsyncTCP dependency
-    cg.add_library("vintlabs/FauxmoESP", "3.4.0")
+    cg.add_library("vintlabs/FauxmoESP", "3.4.1")
 
     # Configure component
     cg.add(var.set_port(config[CONF_PORT]))
