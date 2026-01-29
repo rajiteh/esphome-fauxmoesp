@@ -59,7 +59,7 @@ async def to_code(config):
 
     # Use patched FauxmoESP library with setIP/setMAC methods for ESPHome compatibility
     cg.add_library(
-        None, None, "https://github.com/rajiteh/fauxmoESP.git#esphome-patches"
+        "FauxmoESP", None, "https://github.com/rajiteh/fauxmoESP.git#esphome-patches"
     )
 
     # Configure component
