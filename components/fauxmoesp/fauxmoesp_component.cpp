@@ -1,6 +1,8 @@
 #include "fauxmoesp_component.h"
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
+#include "esphome/components/network/util.h"
+#include <WiFi.h>
 
 namespace esphome {
 namespace fauxmoesp {
@@ -9,6 +11,18 @@ static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up FauxmoESP...");
+  
+  // Debug: Check what WiFi is returning
+  IPAddress ip = WiFi.localIP();
+  String mac = WiFi.macAddress();
+  ESP_LOGW(TAG, "DEBUG: Arduino WiFi.localIP() = %s", ip.toString().c_str());
+  ESP_LOGW(TAG, "DEBUG: Arduino WiFi.macAddress() = %s", mac.c_str());
+  
+  // Also check ESPHome's network info
+  auto ips = network::get_ip_addresses();
+  if (!ips.empty()) {
+    ESP_LOGW(TAG, "DEBUG: ESPHome network IP = %s", ips[0].str().c_str());
+  }
 
   // Configure FauxmoESP
   this->fauxmo_.createServer(this->create_server_);
