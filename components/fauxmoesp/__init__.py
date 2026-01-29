@@ -59,9 +59,9 @@ async def to_code(config):
 
     # AsyncTCP is required by FauxmoESP but not auto-resolved from git repo
     if CORE.is_esp32:
-        cg.add_library("esphome/AsyncTCP-esphome", "2.1.4")
+        cg.add_library("ESP32Async/AsyncTCP", "^3.3.5")
     elif CORE.is_esp8266:
-        cg.add_library("esphome/ESPAsyncTCP-esphome", "2.0.0")
+        cg.add_library("ESP32Async/ESPAsyncTCP", "^2.0.0")
 
     # Use patched FauxmoESP library with setIP/setMAC methods for ESPHome compatibility
     cg.add_library(
