@@ -37,10 +37,16 @@ void FauxmoESPComponent::setup() {
     }
   });
 
+  this->setup_complete_ = true;
   ESP_LOGCONFIG(TAG, "FauxmoESP setup complete (waiting for WiFi)!");
 }
 
 void FauxmoESPComponent::loop() {
+  // Wait for setup to complete first
+  if (!this->setup_complete_) {
+    return;
+  }
+  
   // Check if we need to initialize (waiting for WiFi to connect)
   if (!this->is_initialized_) {
     // Use ESPHome's network API instead of Arduino's WiFi class
