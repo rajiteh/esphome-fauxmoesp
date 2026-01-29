@@ -80,7 +80,7 @@ class FauxmoESPComponent : public Component {
   uint16_t port_{80};
   bool enabled_{true};
   bool create_server_{true};
-  bool is_setup_{false};
+  bool is_initialized_{false};  // True once WiFi is ready and fauxmo is enabled
 };
 
 }  // namespace fauxmoesp

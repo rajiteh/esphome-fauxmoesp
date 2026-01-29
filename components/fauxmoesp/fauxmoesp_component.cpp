@@ -10,24 +10,12 @@ namespace fauxmoesp {
 static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up FauxmoESP...");
+  ESP_LOGCONFIG(TAG, "Setting up FauxmoESP (will initialize when WiFi is ready)...");
   
-  // Debug: Check what WiFi is returning
-  IPAddress ip = WiFi.localIP();
-  String mac = WiFi.macAddress();
-  ESP_LOGW(TAG, "DEBUG: Arduino WiFi.localIP() = %s", ip.toString().c_str());
-  ESP_LOGW(TAG, "DEBUG: Arduino WiFi.macAddress() = %s", mac.c_str());
-  
-  // Also check ESPHome's network info
-  auto ips = network::get_ip_addresses();
-  if (!ips.empty()) {
-    ESP_LOGW(TAG, "DEBUG: ESPHome network IP = %s", ips[0].str().c_str());
-  }
-
-  // Configure FauxmoESP
+  // Configure FauxmoESP but DON'T enable yet
   this->fauxmo_.createServer(this->create_server_);
   this->fauxmo_.setPort(this->port_);
-  this->fauxmo_.enable(this->enabled_);
+  // Don't call enable() here - we'll do it in loop() when WiFi is ready
 
   // Add all configured devices
   for (auto *device : this->devices_) {
@@ -48,14 +36,25 @@ void FauxmoESPComponent::setup() {
     }
   });
 
-  // Enable FauxmoESP
-  this->is_setup_ = true;
-
-  ESP_LOGCONFIG(TAG, "FauxmoESP setup complete!");
+  ESP_LOGCONFIG(TAG, "FauxmoESP setup complete (waiting for WiFi)!");
 }
 
 void FauxmoESPComponent::loop() {
-  if (!this->is_setup_) {
+  // Check if we need to initialize (waiting for valid WiFi)
+  if (!this->is_initialized_) {
+    IPAddress ip = WiFi.localIP();
+    String mac = WiFi.macAddress();
+    
+    // Check if we have a valid IP (not 0.0.0.0) and MAC (not all zeros)
+    if (ip != IPAddress(0, 0, 0, 0) && mac != "00:00:00:00:00:00") {
+      ESP_LOGI(TAG, "WiFi ready! IP: %s, MAC: %s", ip.toString().c_str(), mac.c_str());
+      ESP_LOGI(TAG, "Enabling FauxmoESP server...");
+      
+      this->fauxmo_.enable(this->enabled_);
+      this->is_initialized_ = true;
+      
+      ESP_LOGI(TAG, "FauxmoESP is now active and listening for Alexa discovery");
+    }
     return;
   }
   
@@ -68,10 +67,17 @@ void FauxmoESPComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  Port: %d", this->port_);
   ESP_LOGCONFIG(TAG, "  Enabled: %s", YESNO(this->enabled_));
   ESP_LOGCONFIG(TAG, "  Create Server: %s", YESNO(this->create_server_));
+  ESP_LOGCONFIG(TAG, "  Initialized: %s", YESNO(this->is_initialized_));
   ESP_LOGCONFIG(TAG, "  Devices (%d):", this->devices_.size());
   for (auto *device : this->devices_) {
     ESP_LOGCONFIG(TAG, "    - '%s' (ID: %d)", device->get_name().c_str(), device->get_id());
   }
+  
+  // Debug: Show what WiFi APIs are returning
+  IPAddress ip = WiFi.localIP();
+  String mac = WiFi.macAddress();
+  ESP_LOGCONFIG(TAG, "  Arduino WiFi.localIP(): %s", ip.toString().c_str());
+  ESP_LOGCONFIG(TAG, "  Arduino WiFi.macAddress(): %s", mac.c_str());
   
   if (this->port_ != 80) {
     ESP_LOGW(TAG, "  WARNING: Gen3 Alexa devices require port 80!");
@@ -83,16 +89,16 @@ void FauxmoESPComponent::add_device(FauxmoDevice *device) {
 }
 
 bool FauxmoESPComponent::set_device_state(uint8_t id, bool state, uint8_t value) {
-  if (!this->is_setup_) {
-    ESP_LOGW(TAG, "Cannot set state - component not setup yet");
+  if (!this->is_initialized_) {
+    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
     return false;
   }
   return this->fauxmo_.setState(id, state, value);
 }
 
 bool FauxmoESPComponent::set_device_state(const char *name, bool state, uint8_t value) {
-  if (!this->is_setup_) {
-    ESP_LOGW(TAG, "Cannot set state - component not setup yet");
+  if (!this->is_initialized_) {
+    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
     return false;
   }
   return this->fauxmo_.setState(name, state, value);
