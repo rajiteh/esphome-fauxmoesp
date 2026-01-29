@@ -1,8 +1,8 @@
 #include "fauxmoesp_component.h"
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
+#include "esphome/core/helpers.h"
 #include "esphome/components/network/util.h"
-#include <WiFi.h>
 
 namespace esphome {
 namespace fauxmoesp {
@@ -40,21 +40,38 @@ void FauxmoESPComponent::setup() {
 }
 
 void FauxmoESPComponent::loop() {
-  // Check if we need to initialize (waiting for valid WiFi)
+  // Check if we need to initialize (waiting for WiFi to connect)
   if (!this->is_initialized_) {
-    IPAddress ip = WiFi.localIP();
-    String mac = WiFi.macAddress();
-    
-    // Check if we have a valid IP (not 0.0.0.0) and MAC (not all zeros)
-    if (ip != IPAddress(0, 0, 0, 0) && mac != "00:00:00:00:00:00") {
-      ESP_LOGI(TAG, "WiFi ready! IP: %s, MAC: %s", ip.toString().c_str(), mac.c_str());
-      ESP_LOGI(TAG, "Enabling FauxmoESP server...");
-      
-      this->fauxmo_.enable(this->enabled_);
-      this->is_initialized_ = true;
-      
-      ESP_LOGI(TAG, "FauxmoESP is now active and listening for Alexa discovery");
+    // Use ESPHome's network API instead of Arduino's WiFi class
+    if (!network::is_connected()) {
+      return;  // Wait for WiFi
     }
+    
+    // Get IP from ESPHome's network API
+    auto ips = network::get_ip_addresses();
+    if (ips.empty() || ips[0].is_ip4_broadcast() || (uint32_t)ips[0] == 0) {
+      return;  // Wait for valid IP
+    }
+    
+    // Get MAC address from ESPHome
+    uint8_t mac[6];
+    get_mac_address_raw(mac);
+    char mac_str[18];
+    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    
+    ESP_LOGI(TAG, "Network connected! IP: %s, MAC: %s", ips[0].str().c_str(), mac_str);
+    
+    // Set IP and MAC on fauxmo (patched library method)
+    IPAddress ip_addr(ips[0]);
+    this->fauxmo_.setIP(ip_addr);
+    this->fauxmo_.setMAC(mac_str);
+    
+    ESP_LOGI(TAG, "Enabling FauxmoESP server...");
+    this->fauxmo_.enable(this->enabled_);
+    this->is_initialized_ = true;
+    
+    ESP_LOGI(TAG, "FauxmoESP is now active and listening for Alexa discovery");
     return;
   }
   
@@ -72,12 +89,6 @@ void FauxmoESPComponent::dump_config() {
   for (auto *device : this->devices_) {
     ESP_LOGCONFIG(TAG, "    - '%s' (ID: %d)", device->get_name().c_str(), device->get_id());
   }
-  
-  // Debug: Show what WiFi APIs are returning
-  IPAddress ip = WiFi.localIP();
-  String mac = WiFi.macAddress();
-  ESP_LOGCONFIG(TAG, "  Arduino WiFi.localIP(): %s", ip.toString().c_str());
-  ESP_LOGCONFIG(TAG, "  Arduino WiFi.macAddress(): %s", mac.c_str());
   
   if (this->port_ != 80) {
     ESP_LOGW(TAG, "  WARNING: Gen3 Alexa devices require port 80!");
