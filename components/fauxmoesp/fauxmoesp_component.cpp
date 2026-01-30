@@ -2,37 +2,31 @@
 #include "esphome/core/log.h"
 #include "esphome/components/network/util.h"
 
+#ifdef USE_ESP32
+#include <WiFi.h>
+#endif
+#ifdef USE_ESP8266
+#include <ESP8266WiFi.h>
+#endif
+
 namespace esphome {
 namespace fauxmoesp {
 
 static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
-  ESP_LOGD(TAG, "Setting up FauxmoESP...");
-  
-  if (!network::is_connected()) {
-    ESP_LOGW(TAG, "Network not connected yet, will initialize later");
-    return;
-  }
-  
-  this->initialize_fauxmo_();
+  // Initialization deferred to loop when network is ready
 }
 
 void FauxmoESPComponent::initialize_fauxmo_() {
   if (this->is_initialized_) {
     return;
   }
-  
-  ESP_LOGI(TAG, "Initializing FauxmoESP with %d devices", this->devices_.size());
+  ESP_LOGI(TAG, "Initializing FauxmoESP on port %d", this->port_);
   
   this->fauxmo_.setWebServerPort(this->port_);
   this->fauxmo_.setWebServerEnabled(true);
   this->fauxmo_.setCheckUsername(false);
-  
-  this->fauxmo_.setup(
-    [this](Light *light, LightStateChange *change) { this->on_state_change_(light, change); },
-    [this](Light *light) { this->on_get_state_(light); }
-  );
   
   // Add all devices
   for (auto &device : this->devices_) {
@@ -49,22 +43,28 @@ void FauxmoESPComponent::initialize_fauxmo_() {
       ESP_LOGE(TAG, "Failed to add device: %s", device.first.c_str());
     }
   }
+
+  this->fauxmo_.setup(
+    [this](Light *light, LightStateChange *change) { this->on_state_change_(light, change); },
+    [this](Light *light) { this->on_get_state_(light); }
+  );
   
   this->is_initialized_ = true;
   ESP_LOGI(TAG, "FauxmoESP initialized successfully");
 }
 
 void FauxmoESPComponent::loop() {
-  if (!this->is_initialized_) {
-    if (network::is_connected()) {
-      this->initialize_fauxmo_();
-    }
-    return;
-  }
   
   if (!this->enabled_) {
     return;
   }
+
+  if (!this->is_initialized_) {
+    if (network::is_connected() && WiFi.localIP() != IPAddress(0, 0, 0, 0)) {
+      this->initialize_fauxmo_();
+    }
+    return;
+  }  
   
   this->fauxmo_.update();
 }
