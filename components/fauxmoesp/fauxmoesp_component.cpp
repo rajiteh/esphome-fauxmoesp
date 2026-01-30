@@ -63,13 +63,13 @@ void FauxmoESPComponent::loop() {
   if (!this->is_initialized_) {
     if (network::is_connected()) {
       // Use ESPHome's network utility to get IP
-      auto ip = network::get_ip_address();
-      if (!ip.is_ip4()) {
+      auto ips = network::get_ip_addresses();
+      if (ips.empty() || !ips[0].is_ip4()) {
         return;  // Wait for valid IPv4
       }
       
       // Check if IP is valid (not 0.0.0.0)
-      auto ip_str = ip.str();
+      auto ip_str = ips[0].str();
       if (ip_str == "0.0.0.0" || ip_str.empty()) {
         return;
       }
