@@ -60,7 +60,7 @@ async def to_code(config):
     cg.add_library(
         name="ESP32SSDP",
         repository="https://github.com/luc-github/ESP32SSDP",
-        version="1.x",
+        version="2.x",
     )
     cg.add_library(
         name="FauxmoESP",
