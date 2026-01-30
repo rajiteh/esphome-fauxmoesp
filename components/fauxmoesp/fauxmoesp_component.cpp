@@ -1,9 +1,6 @@
 #include "fauxmoesp_component.h"
 #include "esphome/core/log.h"
-#include "esphome/core/application.h"
-#include "esphome/core/helpers.h"
 #include "esphome/components/network/util.h"
-#include <IPAddress.h>
 
 namespace esphome {
 namespace fauxmoesp {
@@ -11,119 +8,125 @@ namespace fauxmoesp {
 static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up FauxmoESP (will initialize when WiFi is ready)...");
+  ESP_LOGD(TAG, "Setting up FauxmoESP...");
   
-  // Configure FauxmoESP but DON'T enable yet
-  this->fauxmo_.createServer(this->create_server_);
-  this->fauxmo_.setPort(this->port_);
-  // Don't call enable() here - we'll do it in loop() when WiFi is ready
-
-  // Add all configured devices
-  for (auto *device : this->devices_) {
-    uint8_t id = this->fauxmo_.addDevice(device->get_name().c_str());
-    device->set_id(id);
-    ESP_LOGCONFIG(TAG, "  Added device: '%s' (ID: %d)", device->get_name().c_str(), id);
+  if (!network::is_connected()) {
+    ESP_LOGW(TAG, "Network not connected yet, will initialize later");
+    return;
   }
+  
+  this->initialize_fauxmo_();
+}
 
-  // Set up state change callback
-  this->fauxmo_.onSetState([this](unsigned char device_id, const char *device_name, bool state,
-                                   unsigned char value) {
-    ESP_LOGD(TAG, "State change: Device #%d (%s) -> %s (value: %d)", 
-             device_id, device_name, state ? "ON" : "OFF", value);
-
-    // Find the device and trigger its callbacks
-    if (device_id < this->devices_.size()) {
-      this->devices_[device_id]->trigger_callbacks(device_id, device_name, state, value);
+void FauxmoESPComponent::initialize_fauxmo_() {
+  if (this->is_initialized_) {
+    return;
+  }
+  
+  ESP_LOGI(TAG, "Initializing FauxmoESP with %d devices", this->devices_.size());
+  
+  this->fauxmo_.setWebServerPort(this->port_);
+  this->fauxmo_.setWebServerEnabled(true);
+  this->fauxmo_.setCheckUsername(false);
+  
+  this->fauxmo_.setup(
+    [this](Light *light, LightStateChange *change) { this->on_state_change_(light, change); },
+    [this](Light *light) { this->on_get_state_(light); }
+  );
+  
+  // Add all devices
+  for (auto &device : this->devices_) {
+    ESP_LOGD(TAG, "Adding device: %s", device.first.c_str());
+    
+    LightState initial_state(false);
+    initial_state.isLightReachable = true;
+    
+    Light *light = this->fauxmo_.addLight(String(device.first.c_str()), LightCapabilities(), initial_state);
+    
+    if (light != nullptr) {
+      ESP_LOGD(TAG, "Device '%s' added with ID %d", device.first.c_str(), light->deviceId);
+    } else {
+      ESP_LOGE(TAG, "Failed to add device: %s", device.first.c_str());
     }
-  });
-
-  this->setup_complete_ = true;
-  ESP_LOGCONFIG(TAG, "FauxmoESP setup complete (waiting for WiFi)!");
+  }
+  
+  this->is_initialized_ = true;
+  ESP_LOGI(TAG, "FauxmoESP initialized successfully");
 }
 
 void FauxmoESPComponent::loop() {
-  // Wait for setup to complete first
-  if (!this->setup_complete_) {
-    return;
-  }
-  
-  // Check if we need to initialize (waiting for WiFi to connect)
   if (!this->is_initialized_) {
-    // Use ESPHome's network API instead of Arduino's WiFi class
-    if (!network::is_connected()) {
-      return;  // Wait for WiFi
+    if (network::is_connected()) {
+      this->initialize_fauxmo_();
     }
-    
-    // Get IP from ESPHome's network API
-    auto ips = network::get_ip_addresses();
-    if (ips.empty() || !ips[0].is_set()) {
-      return;  // Wait for valid IP
-    }
-    
-    // Get MAC address from ESPHome
-    uint8_t mac[6];
-    get_mac_address_raw(mac);
-    char mac_str[18];
-    snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    
-    ESP_LOGI(TAG, "Network connected! IP: %s, MAC: %s", ips[0].str().c_str(), mac_str);
-    
-    // Convert ESPHome IP to Arduino IPAddress
-    // Parse the IP string since direct conversion isn't available
-    IPAddress ip_addr;
-    ip_addr.fromString(ips[0].str().c_str());
-    
-    // Set IP and MAC on fauxmo (patched library method)
-    this->fauxmo_.setIP(ip_addr);
-    this->fauxmo_.setMAC(mac_str);
-    
-    ESP_LOGI(TAG, "Enabling FauxmoESP server...");
-    this->fauxmo_.enable(this->enabled_);
-    this->is_initialized_ = true;
-    
-    ESP_LOGI(TAG, "FauxmoESP is now active and listening for Alexa discovery");
     return;
   }
   
-  // Handle FauxmoESP events (UDP discovery, TCP requests)
-  this->fauxmo_.handle();
+  if (!this->enabled_) {
+    return;
+  }
+  
+  this->fauxmo_.update();
+}
+
+void FauxmoESPComponent::on_state_change_(Light *light, LightStateChange *change) {
+  if (light == nullptr || change == nullptr) {
+    return;
+  }
+  
+  // Only handle on/off changes
+  if (change->isOnSet()) {
+    bool new_state = change->getIsOn();
+    light->state.isOn = new_state;
+    change->setOnSuccess(true);
+    
+    ESP_LOGD(TAG, "'%s' turned %s", light->name.c_str(), new_state ? "ON" : "OFF");
+    
+    // Find and trigger the callback
+    for (auto &device : this->devices_) {
+      if (device.first == light->name.c_str()) {
+        if (device.second != nullptr) {
+          device.second->trigger(device.first, new_state);
+        }
+        break;
+      }
+    }
+  }
+}
+
+void FauxmoESPComponent::on_get_state_(Light *light) {
+  if (light == nullptr) {
+    return;
+  }
+  light->state.isLightReachable = true;
 }
 
 void FauxmoESPComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "FauxmoESP:");
   ESP_LOGCONFIG(TAG, "  Port: %d", this->port_);
   ESP_LOGCONFIG(TAG, "  Enabled: %s", YESNO(this->enabled_));
-  ESP_LOGCONFIG(TAG, "  Create Server: %s", YESNO(this->create_server_));
   ESP_LOGCONFIG(TAG, "  Initialized: %s", YESNO(this->is_initialized_));
   ESP_LOGCONFIG(TAG, "  Devices (%d):", this->devices_.size());
-  for (auto *device : this->devices_) {
-    ESP_LOGCONFIG(TAG, "    - '%s' (ID: %d)", device->get_name().c_str(), device->get_id());
+  for (auto &device : this->devices_) {
+    ESP_LOGCONFIG(TAG, "    - %s", device.first.c_str());
+  }
+}
+
+void FauxmoESPComponent::add_device(const std::string &name, FauxmoStateTrigger *trigger) {
+  this->devices_.push_back({name, trigger});
+}
+
+void FauxmoESPComponent::set_device_state(const std::string &name, bool state) {
+  if (!this->is_initialized_) {
+    ESP_LOGW(TAG, "Cannot set state - not initialized");
+    return;
   }
   
-  if (this->port_ != 80) {
-    ESP_LOGW(TAG, "  WARNING: Gen3 Alexa devices require port 80!");
+  Light *light = this->fauxmo_.getLightByName(String(name.c_str()));
+  if (light != nullptr) {
+    light->state.isOn = state;
+    ESP_LOGD(TAG, "Set '%s' state to %s", name.c_str(), state ? "ON" : "OFF");
   }
-}
-
-void FauxmoESPComponent::add_device(FauxmoDevice *device) {
-  this->devices_.push_back(device);
-}
-
-bool FauxmoESPComponent::set_device_state(uint8_t id, bool state, uint8_t value) {
-  if (!this->is_initialized_) {
-    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
-    return false;
-  }
-  return this->fauxmo_.setState(id, state, value);
-}
-
-bool FauxmoESPComponent::set_device_state(const char *name, bool state, uint8_t value) {
-  if (!this->is_initialized_) {
-    ESP_LOGW(TAG, "Cannot set state - FauxmoESP not initialized yet");
-    return false;
-  }
-  return this->fauxmo_.setState(name, state, value);
 }
 
 }  // namespace fauxmoesp

@@ -1,12 +1,14 @@
-# Complete working example for ESPHome with FauxmoESP
+# Complete working example for ESPHome with FauxmoESP (Subtixx fork)
 esphome:
   name: alexa-smart-home
   platform: ESP32
   board: esp32dev
 
-# Use the external component from GitHub
+# Use the local external component
 external_components:
-  - source: github://rajiteh/esphome-fauxmoesp
+  - source:
+      type: local
+      path: components
     components: [fauxmoesp]
 
 wifi:
@@ -19,67 +21,56 @@ wifi:
     gateway: 192.168.1.1
     subnet: 255.255.255.0
 
-# Enable logging
 logger:
   level: DEBUG
 
-# Enable Home Assistant API (optional)
 api:
 
-# Enable OTA updates
 ota:
 
 # Configure FauxmoESP component
+# Port 80 is REQUIRED for Gen3 Alexa devices
 fauxmoesp:
-  port: 80 # REQUIRED for Gen3 Alexa devices
+  id: fauxmo_component
+  port: 80
   enabled: true
-  create_server: true
 
   devices:
     - name: "Living Room Light"
-      id: living_room
       on_state:
+        # Available variables: device_name (string), state (bool)
         - logger.log:
-            format: "Alexa commanded Living Room: %s (brightness: %d)"
-            args: ['state ? "ON" : "OFF"', "value"]
+            format: "Alexa: %s turned %s"
+            args: ['device_name.c_str()', 'state ? "ON" : "OFF"']
         - if:
             condition:
               lambda: "return state;"
             then:
-              - light.turn_on:
-                  id: living_room_light
-                  brightness: !lambda "return value / 255.0;"
+              - light.turn_on: living_room_light
             else:
               - light.turn_off: living_room_light
 
     - name: "Kitchen Light"
-      id: kitchen
       on_state:
-        - logger.log:
-            format: "Alexa commanded Kitchen: %s (brightness: %d)"
-            args: ['state ? "ON" : "OFF"', "value"]
         - if:
             condition:
               lambda: "return state;"
             then:
-              - light.turn_on:
-                  id: kitchen_light
-                  brightness: !lambda "return value / 255.0;"
+              - light.turn_on: kitchen_light
             else:
               - light.turn_off: kitchen_light
 
     - name: "Bedroom Fan"
-      id: bedroom_fan
       on_state:
-        - switch.turn_on: fan_switch
-        - lambda: |-
-            if (state) {
-              id(fan_switch).turn_on();
-            } else {
-              id(fan_switch).turn_off();
-            }
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - switch.turn_on: fan_switch
+            else:
+              - switch.turn_off: fan_switch
 
-# Define your actual hardware outputs
+# Hardware outputs
 output:
   - platform: ledc
     pin: GPIO23
@@ -89,39 +80,33 @@ output:
     pin: GPIO22
     id: kitchen_output
 
-# Define lights
+# Lights
 light:
   - platform: monochromatic
     name: "Living Room Light"
     id: living_room_light
     output: living_room_output
     on_turn_on:
-      # Sync state back to Alexa
-      - lambda: |-
-          auto brightness = id(living_room_light).remote_values.get_brightness();
-          id(fauxmo_component).set_device_state("Living Room Light", true, brightness * 255);
+      - lambda: 'id(fauxmo_component).set_device_state("Living Room Light", true);'
     on_turn_off:
-      - lambda: |-
-          id(fauxmo_component).set_device_state("Living Room Light", false, 0);
+      - lambda: 'id(fauxmo_component).set_device_state("Living Room Light", false);'
 
   - platform: monochromatic
     name: "Kitchen Light"
     id: kitchen_light
     output: kitchen_output
+    on_turn_on:
+      - lambda: 'id(fauxmo_component).set_device_state("Kitchen Light", true);'
+    on_turn_off:
+      - lambda: 'id(fauxmo_component).set_device_state("Kitchen Light", false);'
 
-# Define switches
+# Switches
 switch:
   - platform: gpio
     pin: GPIO21
     name: "Fan Switch"
     id: fan_switch
     on_turn_on:
-      - lambda: 'id(fauxmo_component).set_device_state("Bedroom Fan", true, 255);'
+      - lambda: 'id(fauxmo_component).set_device_state("Bedroom Fan", true);'
     on_turn_off:
-      - lambda: 'id(fauxmo_component).set_device_state("Bedroom Fan", false, 0);'
-
-# Reference the FauxmoESP component for programmatic access
-globals:
-  - id: fauxmo_component
-    type: FauxmoESPComponent*
-    initial_value: "nullptr"
+      - lambda: 'id(fauxmo_component).set_device_state("Bedroom Fan", false);'

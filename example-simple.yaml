@@ -5,7 +5,9 @@ esphome:
   board: nodemcuv2
 
 external_components:
-  - source: github://rajiteh/esphome-fauxmoesp
+  - source:
+      type: local
+      path: components
     components: [fauxmoesp]
 
 wifi:
@@ -18,13 +20,23 @@ api:
 
 ota:
 
-# Simple FauxmoESP setup
+# FauxmoESP - Port 80 required for Gen3 Alexa
 fauxmoesp:
+  port: 80
   devices:
     - name: "Smart Light"
       on_state:
-        - logger.log: "State changed from Alexa!"
-        - switch.toggle: relay
+        # Variables: device_name (string), state (bool)
+        - logger.log:
+            format: "%s: %s"
+            args: ["device_name.c_str()", 'state ? "ON" : "OFF"']
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - switch.turn_on: relay
+            else:
+              - switch.turn_off: relay
 
 switch:
   - platform: gpio
