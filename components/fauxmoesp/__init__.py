@@ -58,9 +58,10 @@ async def to_code(config):
     CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome"])
     cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
     cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
+    # Use forked ESP32SSDP with ESPHome native network methods for IP detection
     cg.add_library(
         name="ESP32SSDP",
-        repository="https://github.com/luc-github/ESP32SSDP",
+        repository="https://github.com/rajiteh/ESP32SSDP",
         version="2.x",
     )
     cg.add_library(
