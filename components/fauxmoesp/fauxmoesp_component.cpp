@@ -3,6 +3,7 @@
 #include "esphome/components/network/util.h"
 
 #ifdef USE_ESP32
+#include <esp_wifi.h>
 #include <WiFi.h>
 #endif
 #ifdef USE_ESP8266
@@ -61,11 +62,26 @@ void FauxmoESPComponent::loop() {
 
   if (!this->is_initialized_) {
     if (network::is_connected()) {
-      auto ip = WiFi.localIP();
-      if (ip[0] != 0) {  // Simple check: first octet is not 0
-        ESP_LOGI(TAG, "Network ready, IP: %d.%d.%d.%d - initializing", ip[0], ip[1], ip[2], ip[3]);
-        this->initialize_fauxmo_();
+      // Use ESPHome's network utility to get IP
+      auto ip = network::get_ip_address();
+      if (!ip.is_ip4()) {
+        return;  // Wait for valid IPv4
       }
+      
+      // Check if IP is valid (not 0.0.0.0)
+      auto ip_str = ip.str();
+      if (ip_str == "0.0.0.0" || ip_str.empty()) {
+        return;
+      }
+      
+      ESP_LOGI(TAG, "Network ready, IP: %s - initializing", ip_str.c_str());
+      
+      // Force Arduino WiFi to sync with ESP-IDF state
+      #ifdef USE_ESP32
+      WiFi.mode(WIFI_STA);  // Ensure WiFi mode is set so Arduino WiFi.localIP() works
+      #endif
+      
+      this->initialize_fauxmo_();
     }
     return;
   }  
