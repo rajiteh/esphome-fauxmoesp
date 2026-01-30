@@ -52,18 +52,17 @@ CONFIG_SCHEMA = cv.Schema(
 
 @coroutine_with_priority(50.0)
 async def to_code(config):
-    import os
-
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    # Use patched local ESP32SSDP (fixes WiFi.localIP() returning 0.0.0.0 in ESPHome)
-    # Add our local ESP32SSDP folder to the include path
-    component_dir = os.path.dirname(__file__)
-    esp32ssdp_dir = os.path.join(component_dir, "ESP32SSDP")
-    cg.add_build_flag(f"-I{esp32ssdp_dir}")
+    CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome"])
 
-    CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome", "ESP32SSDP"])
+    cg.add_library(
+        name="ESP32SSDP",
+        repository="https://github.com/rajiteh/ESP32SSDP",
+        version="2.x",
+    )
+
     cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
     cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
     cg.add_library(
