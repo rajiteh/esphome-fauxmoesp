@@ -12,7 +12,7 @@ from esphome.const import (
     CONF_PORT,
     CONF_ON_STATE,
 )
-from esphome.core import coroutine_with_priority
+from esphome.core import coroutine_with_priority, CORE
 
 AUTO_LOAD = ["network"]
 CODEOWNERS = ["@rajiteh"]
@@ -55,6 +55,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
+    CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome"])
     cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
     cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
     cg.add_library(
