@@ -56,15 +56,13 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome"])
-
-    cg.add_library(
-        name="ESP32SSDP",
-        repository="https://github.com/rajiteh/ESP32SSDP",
-        version="2.x",
-    )
-
     cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
     cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
+    cg.add_library(
+        name="ESP32SSDP",
+        repository="https://github.com/luc-github/ESP32SSDP",
+        version="2.x",
+    )
     cg.add_library(
         name="FauxmoESP",
         repository="https://github.com/Subtixx/FauxmoESP",
