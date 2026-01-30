@@ -55,9 +55,13 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    # cg.add_library("ESP32Async/AsyncTCP", "^3.3.5")
-    # cg.add_library(name="ESP32SSDP", repository="https://github.com/luc-github/ESP32SSDP", version=" None,")
-    cg.add_library("Subtixx/FauxmoESP", "2.0.0")
+    cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
+    cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
+    cg.add_library(
+        name="FauxmoESP",
+        repository="https://github.com/Subtixx/FauxmoESP",
+        version="main",
+    )
 
     cg.add(var.set_port(config[CONF_PORT]))
     cg.add(var.set_enabled(config[CONF_ENABLED]))
