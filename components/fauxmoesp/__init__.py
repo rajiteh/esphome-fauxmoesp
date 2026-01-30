@@ -55,7 +55,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    # ESP32SSDP library for SSDP discovery (handles IGMP/multicast properly)
+    cg.add_library("ESP32Async/AsyncTCP", "^3.3.5")
     cg.add_library("ESP32SSDP", None, "https://github.com/luc-github/ESP32SSDP")
     cg.add_library("FauxmoESP", None, "https://github.com/Subtixx/FauxmoESP")
 
