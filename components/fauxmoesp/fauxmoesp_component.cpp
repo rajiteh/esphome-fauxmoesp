@@ -2,14 +2,6 @@
 #include "esphome/core/log.h"
 #include "esphome/components/network/util.h"
 
-#ifdef USE_ESP32
-#include <esp_wifi.h>
-#include <WiFi.h>
-#endif
-#ifdef USE_ESP8266
-#include <ESP8266WiFi.h>
-#endif
-
 namespace esphome {
 namespace fauxmoesp {
 
@@ -75,12 +67,6 @@ void FauxmoESPComponent::loop() {
       }
       
       ESP_LOGI(TAG, "Network ready, IP: %s - initializing", ip_str.c_str());
-      
-      // Force Arduino WiFi to sync with ESP-IDF state
-      #ifdef USE_ESP32
-      WiFi.mode(WIFI_STA);  // Ensure WiFi mode is set so Arduino WiFi.localIP() works
-      #endif
-      
       this->initialize_fauxmo_();
     }
     return;
