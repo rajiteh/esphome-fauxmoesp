@@ -60,8 +60,12 @@ void FauxmoESPComponent::loop() {
   }
 
   if (!this->is_initialized_) {
-    if (network::is_connected() && WiFi.localIP() != IPAddress(0, 0, 0, 0)) {
-      this->initialize_fauxmo_();
+    if (network::is_connected()) {
+      auto ip = WiFi.localIP();
+      if (ip[0] != 0) {  // Simple check: first octet is not 0
+        ESP_LOGI(TAG, "Network ready, IP: %d.%d.%d.%d - initializing", ip[0], ip[1], ip[2], ip[3]);
+        this->initialize_fauxmo_();
+      }
     }
     return;
   }  
