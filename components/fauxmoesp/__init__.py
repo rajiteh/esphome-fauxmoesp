@@ -66,7 +66,7 @@ async def to_code(config):
     )
     cg.add_library(
         name="FauxmoESP",
-        repository="https://github.com/Subtixx/FauxmoESP",
+        repository="https://github.com/rajiteh/FauxmoESP",
         version="main",
     )
 
