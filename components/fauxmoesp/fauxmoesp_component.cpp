@@ -9,6 +9,7 @@ static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
   // Initialization deferred to loop when network is ready
+  ESP_LOGI(TAG, "FauxmoESP setup function called, initialization deferred to loop");
 }
 
 void FauxmoESPComponent::initialize_fauxmo_() {
