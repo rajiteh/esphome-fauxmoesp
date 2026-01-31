@@ -1,6 +1,6 @@
 #include "fauxmoesp_component.h"
 #include "esphome/core/log.h"
-
+#include "esp_netif.h"
 
 namespace esphome {
 namespace fauxmoesp {
@@ -53,6 +53,24 @@ void FauxmoESPComponent::loop() {
   }
 
   if (!this->is_initialized_) {
+    // Use ESP-IDF's esp_netif directly - supports WiFi STA, AP, and Ethernet
+    esp_netif_ip_info_t ip_info = {0};
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif == NULL) {
+      netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    }
+    if (netif == NULL) {
+      netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
+    }
+    if (netif == NULL) {
+      ESP_LOGW(TAG, "Network interface not found, deferring FauxmoESP initialization");
+      return // Not connected
+    }
+    esp_err_t err = esp_netif_get_ip_info(netif, &ip_info);
+    if (err != ESP_OK) {
+      ESP_LOGW(TAG, "Failed to get IP address info. Deferring FauxmoESP initialization. Error 0x%x", err);
+      return
+    }
     this->initialize_fauxmo_();
     return;
   }  
