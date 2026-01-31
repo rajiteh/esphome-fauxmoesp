@@ -64,12 +64,12 @@ void FauxmoESPComponent::loop() {
     }
     if (netif == NULL) {
       ESP_LOGW(TAG, "Network interface not found, deferring FauxmoESP initialization");
-      return // Not connected
+      return;
     }
     esp_err_t err = esp_netif_get_ip_info(netif, &ip_info);
     if (err != ESP_OK) {
       ESP_LOGW(TAG, "Failed to get IP address info. Deferring FauxmoESP initialization. Error 0x%x", err);
-      return
+      return;
     }
     this->initialize_fauxmo_();
     return;
