@@ -9,7 +9,6 @@ static const char *const TAG = "fauxmoesp";
 
 void FauxmoESPComponent::setup() {
   // Initialization deferred to loop when network is ready
-  ESP_LOGI(TAG, "FauxmoESP setup function called, initialization deferred to loop");
 }
 
 void FauxmoESPComponent::initialize_fauxmo_() {
@@ -69,10 +68,9 @@ void FauxmoESPComponent::loop() {
     }
     esp_err_t err = esp_netif_get_ip_info(netif, &ip_info);
     if (err != ESP_OK || ip_info.ip.addr == 0) {
-      ESP_LOGW(TAG, "Failed to get IP address info or IP is 0.0.0.0. Deferring FauxmoESP initialization. Error 0x%x", err);
       return;
     }
-    ESP_LOGI(TAG, "Network ready with IP: %u.%u.%u.%u. Initializing FauxmoESP.",
+    ESP_LOGI(TAG, "Network ready with IP: %u.%u.%u.%u",
              esp_ip4_addr_get_byte(&ip_info.ip, 0),
              esp_ip4_addr_get_byte(&ip_info.ip, 1),
              esp_ip4_addr_get_byte(&ip_info.ip, 2),
