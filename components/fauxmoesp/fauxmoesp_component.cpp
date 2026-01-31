@@ -67,8 +67,8 @@ void FauxmoESPComponent::loop() {
       return;
     }
     esp_err_t err = esp_netif_get_ip_info(netif, &ip_info);
-    if (err != ESP_OK) {
-      ESP_LOGW(TAG, "Failed to get IP address info. Deferring FauxmoESP initialization. Error 0x%x", err);
+    if (err != ESP_OK || ip_info.ip.addr == 0) {
+      ESP_LOGW(TAG, "Failed to get IP address info or IP is 0.0.0.0. Deferring FauxmoESP initialization. Error 0x%x", err);
       return;
     }
     ESP_LOGI(TAG, "Network ready with IP: %u.%u.%u.%u. Initializing FauxmoESP.",
