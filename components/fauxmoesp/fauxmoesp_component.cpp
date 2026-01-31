@@ -71,6 +71,11 @@ void FauxmoESPComponent::loop() {
       ESP_LOGW(TAG, "Failed to get IP address info. Deferring FauxmoESP initialization. Error 0x%x", err);
       return;
     }
+    ESP_LOGI(TAG, "Network ready with IP: %u.%u.%u.%u. Initializing FauxmoESP.",
+             esp_ip4_addr_get_byte(&ip_info.ip, 0),
+             esp_ip4_addr_get_byte(&ip_info.ip, 1),
+             esp_ip4_addr_get_byte(&ip_info.ip, 2),
+             esp_ip4_addr_get_byte(&ip_info.ip, 3));
     this->initialize_fauxmo_();
     return;
   }  
