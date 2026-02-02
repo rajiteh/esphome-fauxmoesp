@@ -1,8 +1,6 @@
 # ESPHome FauxmoESP Component
 
-Reference: https://github.com/creepystefan/esphomefauxmo/blob/main/components/myalexa/__init__.py
-
-Integrate Amazon Alexa with ESPHome devices using Philips Hue emulation via the FauxmoESP library.
+Integrate Amazon Alexa with ESPHome devices using Philips Hue emulation via the [FauxmoESP](https://github.com/vintlabs/fauxmoESP) library.
 
 ## Features
 
@@ -12,7 +10,7 @@ Integrate Amazon Alexa with ESPHome devices using Philips Hue emulation via the 
 - ✅ Brightness control support
 - ✅ Automatic device discovery
 - ✅ Bi-directional state sync
-- ✅ ESP8266 and ESP32 support
+- ✅ ESP32 support (ESP8266 may work but is untested)
 
 ## Installation
 
@@ -20,7 +18,7 @@ Integrate Amazon Alexa with ESPHome devices using Philips Hue emulation via the 
 
 ```yaml
 external_components:
-  - source: github://yourusername/esphome-fauxmoesp
+  - source: github://rajiteh/esphome-fauxmoesp
     components: [ fauxmoesp ]
 ```
 
@@ -32,7 +30,13 @@ fauxmoesp:
   devices:
     - name: "Living Room Light"
       on_state:
-        - light.toggle: my_light
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - light.turn_on: my_light
+            else:
+              - light.turn_off: my_light
 ```
 
 ### 3. Flash to your device:
@@ -49,23 +53,30 @@ Say: **"Alexa, discover devices"** or use the Alexa app.
 
 ### Component Configuration
 
-- **port** (*Optional*, int): TCP port for the server. Defaults to `80`. **Must be 80 for Gen3 devices**.
-- **enabled** (*Optional*, boolean): Enable/disable the component. Defaults to `true`.
-- **create_server** (*Optional*, boolean): Create internal web server. Defaults to `true`.
-- **devices** (*Required*, list): List of virtual Alexa devices.
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| **id** | ID | *auto* | Unique ID for the component (required for bi-directional sync) |
+| **port** | int | `80` | TCP port for the server. **Must be 80 for Gen3 Alexa devices** |
+| **enabled** | boolean | `true` | Enable/disable the component |
+| **create_server** | boolean | `true` | Create internal web server |
+| **devices** | list | *required* | List of virtual Alexa devices |
 
 ### Device Configuration
 
-- **name** (*Required*, string): Device name as it appears in Alexa.
-- **id** (*Optional*, ID): Unique ID for the device (auto-generated if not specified).
-- **on_state** (*Optional*, [Automation](https://esphome.io/guides/automations.html)): Actions to perform when Alexa changes the device state.
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| **name** | string | *required* | Device name as it appears in Alexa |
+| **id** | ID | *auto* | Unique ID for the device |
+| **on_state** | [Automation](https://esphome.io/guides/automations.html) | *optional* | Actions when Alexa changes state |
 
 ### on_state Trigger Variables
 
-- `device_id` (uint8): Numeric device ID (0-based index).
-- `device_name` (string): Name of the device.
-- `state` (bool): ON/OFF state (`true` = ON, `false` = OFF).
-- `value` (uint8): Brightness value (0-255). When you say "Set light to 50%", this is 128.
+| Variable | Type | Description |
+|----------|------|-------------|
+| `device_id` | uint8 | Numeric device ID (0-based index) |
+| `device_name` | string | Name of the device |
+| `state` | bool | ON/OFF state (`true` = ON, `false` = OFF) |
+| `value` | uint8 | Brightness value (0-255). "Set light to 50%" = 128 |
 
 ## Usage Examples
 
@@ -76,9 +87,12 @@ fauxmoesp:
   devices:
     - name: "Bedroom Light"
       on_state:
+        - logger.log:
+            format: "Alexa: %s turned %s"
+            args: ['device_name.c_str()', 'state ? "ON" : "OFF"']
         - if:
             condition:
-              lambda: 'return state;'
+              lambda: "return state;"
             then:
               - light.turn_on: bedroom_light
             else:
@@ -94,7 +108,7 @@ fauxmoesp:
       on_state:
         - light.turn_on:
             id: my_light
-            brightness: !lambda 'return value / 255.0;'
+            brightness: !lambda "return value / 255.0;"
 ```
 
 ### Multiple Devices
@@ -104,38 +118,52 @@ fauxmoesp:
   devices:
     - name: "Light 1"
       on_state:
-        - switch.toggle: relay1
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - switch.turn_on: relay1
+            else:
+              - switch.turn_off: relay1
     
     - name: "Light 2"
       on_state:
-        - switch.toggle: relay2
-    
-    - name: "Fan"
-      on_state:
-        - switch.toggle: fan_relay
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - switch.turn_on: relay2
+            else:
+              - switch.turn_off: relay2
 ```
 
 ### Bi-directional Sync
 
-To report state changes back to Alexa when controlled locally:
+To report state changes back to Alexa when controlled locally, give the component an `id` and call `set_device_state()`:
 
 ```yaml
-light:
-  - platform: binary
-    name: "Smart Light"
-    id: smart_light
-    output: relay
-    on_turn_on:
-      - lambda: 'id(fauxmo).set_device_state("Smart Light", true, 255);'
-    on_turn_off:
-      - lambda: 'id(fauxmo).set_device_state("Smart Light", false, 0);'
-
 fauxmoesp:
   id: fauxmo
   devices:
     - name: "Smart Light"
       on_state:
-        - light.toggle: smart_light
+        - if:
+            condition:
+              lambda: "return state;"
+            then:
+              - light.turn_on: smart_light
+            else:
+              - light.turn_off: smart_light
+
+light:
+  - platform: monochromatic
+    name: "Smart Light"
+    id: smart_light
+    output: light_output
+    on_turn_on:
+      - lambda: 'id(fauxmo).set_device_state("Smart Light", true);'
+    on_turn_off:
+      - lambda: 'id(fauxmo).set_device_state("Smart Light", false);'
 ```
 
 ## Alexa Voice Commands
@@ -193,10 +221,10 @@ Then integrate with ESPHome's async web server manually.
 | Platform | Status |
 |----------|--------|
 | ESP32 | ✅ Fully supported |
-| ESP8266 | ✅ Fully supported |
 | ESP32-S2 | ✅ Supported |
 | ESP32-C3 | ✅ Supported |
-| RP2040 | ⚠️ Untested |
+| ESP8266 | ⚠️ Untested (library support exists) |
+| RP2040 | ❌ Not supported |
 
 ## Technical Details
 
@@ -204,6 +232,49 @@ Then integrate with ESPHome's async web server manually.
 - Emulates Philips Hue Bridge API v2
 - UDP discovery on `239.255.255.250:1900` (SSDP)
 - HTTP server on configurable port (default 80)
+- Patched FauxmoESP library bundled in `components/fauxmoesp/` for ESPHome compatibility
+
+## Development
+
+This component includes a patched version of the upstream [FauxmoESP](https://github.com/vintlabs/fauxmoESP) library. The patches add `setIP()` and `setMac()` methods to allow ESPHome to explicitly set network parameters instead of relying on Arduino WiFi globals.
+
+### Repository Structure
+
+```
+components/fauxmoesp/
+├── __init__.py              # ESPHome component definition
+├── fauxmoesp_component.cpp  # ESPHome wrapper implementation
+├── fauxmoesp_component.h    # ESPHome wrapper header
+├── fauxmoESP.cpp            # Patched upstream library
+├── fauxmoESP.h              # Patched upstream library
+└── templates.h              # Upstream library templates
+```
+
+### Syncing with Upstream
+
+The Makefile provides targets to manage the patched library:
+
+```bash
+# Fetch upstream FauxmoESP and apply patches
+make apply-patch
+
+# After making changes to fauxmoESP/, generate a new patch file
+make generate-patch
+```
+
+The patch is based on commit `1b8b91e362bc4c2f0891f1160c69f1e399346c02` of the upstream library.
+
+### Enabling Debug Logging
+
+To enable verbose FauxmoESP library logging, add these build flags to your YAML:
+
+```yaml
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DDEBUG_FAUXMO_VERBOSE_TCP=1"
+      - "-DDEBUG_FAUXMO_VERBOSE_UDP=1"
+```
 
 ## Credits
 
