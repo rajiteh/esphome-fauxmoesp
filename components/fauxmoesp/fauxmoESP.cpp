@@ -37,8 +37,8 @@ void fauxmoESP::_sendUDPResponse() {
 
 	DEBUG_MSG_FAUXMO("[FAUXMO] Responding to M-SEARCH request\n");
 
-	IPAddress ip = WiFi.localIP();
-    String mac = WiFi.macAddress();
+    IPAddress ip = _ip_set ? _ip : WiFi.localIP();
+    String mac = _mac_set ? _mac : WiFi.macAddress();
     mac.replace(":", "");
     mac.toLowerCase();
 
@@ -178,8 +178,8 @@ bool fauxmoESP::_onTCPDescription(AsyncClient *client, String url, String body) 
 
 	DEBUG_MSG_FAUXMO("[FAUXMO] Handling /description.xml request\n");
 
-	IPAddress ip = WiFi.localIP();
-    String mac = WiFi.macAddress();
+    IPAddress ip = _ip_set ? _ip : WiFi.localIP();
+    String mac = _mac_set ? _mac : WiFi.macAddress();
     mac.replace(":", "");
     mac.toLowerCase();
 
@@ -650,7 +650,8 @@ void fauxmoESP::enable(bool enable) {
 		#ifdef ESP32
             _udp.beginMulticast(FAUXMO_UDP_MULTICAST_IP, FAUXMO_UDP_MULTICAST_PORT);
         #else
-            _udp.beginMulticast(WiFi.localIP(), FAUXMO_UDP_MULTICAST_IP, FAUXMO_UDP_MULTICAST_PORT);
+            IPAddress ip = _ip_set ? _ip : WiFi.localIP();
+            _udp.beginMulticast(ip, FAUXMO_UDP_MULTICAST_IP, FAUXMO_UDP_MULTICAST_PORT);
         #endif
         DEBUG_MSG_FAUXMO("[FAUXMO] UDP server started\n");
 

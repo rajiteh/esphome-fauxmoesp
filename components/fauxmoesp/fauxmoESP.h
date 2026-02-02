@@ -109,6 +109,8 @@ class fauxmoESP {
         void enable(bool enable);
         void createServer(bool internal) { _internal = internal; }
         void setPort(unsigned long tcp_port) { _tcp_port = tcp_port; }
+        void setIP(IPAddress ip) { _ip = ip; _ip_set = true; }
+        void setMac(const char * mac) { _mac = String(mac); _mac.replace(":", ""); _mac.toLowerCase(); _mac_set = true; }
         void handle();
 
     private:
@@ -117,6 +119,10 @@ class fauxmoESP {
         bool _enabled = false;
         bool _internal = true;
         unsigned int _tcp_port = FAUXMO_TCP_PORT;
+        IPAddress _ip;
+        String _mac;
+        bool _ip_set = false;
+        bool _mac_set = false;
         std::vector<fauxmoesp_device_t> _devices;
 		#ifdef ESP8266
         WiFiEventHandler _handler;
