@@ -44,17 +44,11 @@ void FauxmoESPComponent::initialize_fauxmo_() {
 
     IPAddress ip;
     if (!this->get_ip_(ip)) {
-        ESP_LOGD(
-            TAG,
-            "IP address not assigned yet, deferring FauxmoESP initialization");
         return;
     }
 
     char mac_str[18];
     if (!this->get_mac_(mac_str, sizeof(mac_str))) {
-        ESP_LOGD(
-            TAG,
-            "Failed to get MAC address, deferring FauxmoESP initialization");
         return;
     }
 
