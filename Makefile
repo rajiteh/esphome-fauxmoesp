@@ -11,11 +11,11 @@ sync-fauxmoesp:
 	@if [ ! -d "fauxmoESP" ]; then \
 		git clone https://github.com/vintlabs/fauxmoESP.git fauxmoESP; \
 	fi
-	cd fauxmoESP && git checkout $(FAUXMOESP_COMMIT)
+	cd fauxmoESP && git fetch origin && git checkout $(FAUXMOESP_COMMIT) && git reset --hard
 
 apply-patch: sync-fauxmoesp
 	cd fauxmoESP && git apply ../fauxmoESP.patch
-	cp fauxmoESP/src/FauxmoESP.{h,cpp} components/fauxmoesp/
+	cp fauxmoESP/src/* components/fauxmoesp/
 
-build-patch: sync-fauxmoesp
+generate-patch: 
 	cd fauxmoESP && git diff > ../fauxmoESP.patch
