@@ -1,5 +1,5 @@
 diff --git a/src/fauxmoESP.cpp b/src/fauxmoESP.cpp
-index 71a975f..2abd641 100644
+index 71a975f..dd455ad 100644
 --- a/src/fauxmoESP.cpp
 +++ b/src/fauxmoESP.cpp
 @@ -37,8 +37,8 @@ void fauxmoESP::_sendUDPResponse() {
@@ -23,6 +23,15 @@ index 71a975f..2abd641 100644
 +    String mac = _mac_set ? _mac : WiFi.macAddress();
      mac.replace(":", "");
      mac.toLowerCase();
+ 
+@@ -521,7 +521,7 @@ unsigned char fauxmoESP::addDevice(const char * device_name) {
+ 	  device.value = 0;
+ 
+     // create the uniqueid
+-    String mac = WiFi.macAddress();
++    String mac = _mac_set ? _mac : WiFi.macAddress();
+ 
+     snprintf(device.uniqueid, FAUXMO_DEVICE_UNIQUE_ID_LENGTH, "%02X:%s:%s", device_id, mac.c_str(), "00:00");
  
 @@ -650,7 +650,8 @@ void fauxmoESP::enable(bool enable) {
  		#ifdef ESP32
