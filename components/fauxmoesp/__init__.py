@@ -1,7 +1,4 @@
-"""FauxmoESP Component for ESPHome - Alexa integration via Philips Hue emulation
-
-Simplified component supporting on/off control only.
-"""
+"""FauxmoESP Component for ESPHome - Alexa integration via Philips Hue emulation"""
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
@@ -12,25 +9,29 @@ from esphome.const import (
     CONF_PORT,
     CONF_ON_STATE,
 )
-from esphome.core import coroutine_with_priority, CORE
+from esphome.core import CORE, coroutine_with_priority
 
+DEPENDENCIES = ["wifi"]
 AUTO_LOAD = ["network"]
 CODEOWNERS = ["@rajiteh"]
 
 fauxmoesp_ns = cg.esphome_ns.namespace("fauxmoesp")
 FauxmoESPComponent = fauxmoesp_ns.class_("FauxmoESPComponent", cg.Component)
+FauxmoDevice = fauxmoesp_ns.class_("FauxmoDevice")
 
-# Trigger with device_name (string) and state (bool)
+# Triggers
 FauxmoStateTrigger = fauxmoesp_ns.class_(
     "FauxmoStateTrigger",
-    automation.Trigger.template(cg.std_string, cg.bool_),
+    automation.Trigger.template(cg.uint8, cg.std_string, cg.bool_, cg.uint8),
 )
 
 CONF_DEVICES = "devices"
 CONF_ENABLED = "enabled"
+CONF_CREATE_SERVER = "create_server"
 
 DEVICE_SCHEMA = cv.Schema(
     {
+        cv.GenerateID(): cv.declare_id(FauxmoDevice),
         cv.Required(CONF_NAME): cv.string,
         cv.Optional(CONF_ON_STATE): automation.validate_automation(
             {
@@ -46,6 +47,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_DEVICES, default=[]): cv.ensure_list(DEVICE_SCHEMA),
         cv.Optional(CONF_PORT, default=80): cv.port,
         cv.Optional(CONF_ENABLED, default=True): cv.boolean,
+        cv.Optional(CONF_CREATE_SERVER, default=True): cv.boolean,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -55,40 +57,33 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    CORE.add_platformio_option("lib_ignore", ["AsyncTCP-esphome"])
-    cg.add_library("ESP32Async/AsyncTCP", "3.4.10")
-    cg.add_library("bblanchon/ArduinoJson", "^6.20.1")
-    # Use forked ESP32SSDP with ESPHome native network methods for IP detection
-    cg.add_library(
-        name="ESP32SSDP",
-        repository="https://github.com/rajiteh/ESP32SSDP",
-        version="2.x",
-    )
-    cg.add_library(
-        name="FauxmoESP",
-        repository="https://github.com/rajiteh/FauxmoESP",
-        version="main",
-    )
+    # AsyncTCP is required by FauxmoESP but not auto-resolved from git repo
+    if CORE.is_esp32:
+        cg.add_library("ESP32Async/AsyncTCP", "^3.3.5")
+    elif CORE.is_esp8266:
+        cg.add_library("ESP32Async/ESPAsyncTCP", "^2.0.0")
 
+    # Configure component
     cg.add(var.set_port(config[CONF_PORT]))
     cg.add(var.set_enabled(config[CONF_ENABLED]))
+    cg.add(var.set_create_server(config[CONF_CREATE_SERVER]))
 
     # Add devices
     for device_config in config[CONF_DEVICES]:
-        device_name = device_config[CONF_NAME]
+        device = cg.new_Pvariable(device_config[CONF_ID])
+        cg.add(device.set_name(device_config[CONF_NAME]))
+        cg.add(var.add_device(device))
 
-        # Create trigger if on_state is defined
-        trigger = None
+        # Register state change triggers
         for conf in device_config.get(CONF_ON_STATE, []):
-            trigger = cg.new_Pvariable(conf[CONF_ID])
-            cg.add(trigger.set_device_name(device_name))
+            trigger = cg.new_Pvariable(conf[CONF_ID], device)
             await automation.build_automation(
                 trigger,
                 [
+                    (cg.uint8, "device_id"),
                     (cg.std_string, "device_name"),
                     (cg.bool_, "state"),
+                    (cg.uint8, "value"),
                 ],
                 conf,
             )
-
-        cg.add(var.add_device(device_name, trigger))
