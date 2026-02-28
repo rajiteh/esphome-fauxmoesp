@@ -58,10 +58,12 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     # AsyncTCP is required by FauxmoESP but not auto-resolved from git repo
-    # Networking library is required for WiFi.h in newer Arduino ESP32 frameworks (3.3.7+)
     if CORE.is_esp32:
         cg.add_library("ESP32Async/AsyncTCP", "^3.3.5")
-        cg.add_library("Networking", None)  # Required for WiFi.h
+        # WiFi/Networking library is required for WiFiUdp.h in Arduino ESP32 3.x
+        # ESPHome 2026.2+ removed WiFi.h transitive includes, so we need explicit dep
+        cg.add_library("WiFi", None)
+        cg.add_library("Network", None)
     elif CORE.is_esp8266:
         cg.add_library("ESP32Async/ESPAsyncTCP", "^2.0.0")
 
