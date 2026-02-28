@@ -24,10 +24,11 @@ class WiFiCompat {
         if (wifi != nullptr) {
             auto addresses = wifi->get_ip_addresses();
             if (!addresses.empty()) {
-                // Use str() method and parse back to IPAddress
                 auto addr = addresses[0];
+                char buf[esphome::network::IP_ADDRESS_BUFFER_SIZE];
+                addr.str_to(buf);
                 IPAddress result;
-                result.fromString(addr.str().c_str());
+                result.fromString(buf);
                 return result;
             }
         }
