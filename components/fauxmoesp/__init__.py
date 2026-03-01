@@ -63,7 +63,6 @@ async def to_code(config):
         # WiFi/Networking library is required for WiFiUdp.h in Arduino ESP32 3.x
         # ESPHome 2026.2+ removed WiFi.h transitive includes, so we need explicit dep
         cg.add_library("WiFi", None)
-        cg.add_library("Network", None)
     elif CORE.is_esp8266:
         cg.add_library("ESP32Async/ESPAsyncTCP", "^2.0.0")
 
